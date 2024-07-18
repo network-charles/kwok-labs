@@ -1,0 +1,33 @@
+# Scheduling pods with a limit Range
+
+## Create cluster
+kwokctl create cluster
+
+## View clusters
+kwokctl get clusters
+
+## Deploy node
+kubectl apply -f node.yaml
+
+## Create a resource limit
+kubectl apply -f limit-range.yaml
+
+## Confirm the limit has the required values
+kubectl describe limitranges cpu-resource-constraint
+
+## Deploy a pod above the resource limit
+kubectl create -f pod-beyond-limit.yaml
+
+Notice the error `Invalid value: "700m": must be less than or equal to cpu limit of 500m`
+
+## Deploy a pod with a newly defined resource limit
+kubectl apply -f pod-within-limit.yaml
+
+## Confirm that the pod is running
+kubectl get pod
+
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          4s
+
+## Delete the cluster
+kwokctl delete cluster

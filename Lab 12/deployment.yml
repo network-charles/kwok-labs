@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-exec-and-resource-deployment
+spec:
+  replicas: 100
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      annotations:
+        kwok.x-k8s.io/usage-cpu: "1000m"
+        kwok.x-k8s.io/usage-memory: "1Gi"
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80

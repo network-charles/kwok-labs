@@ -1,0 +1,82 @@
+# Scale node up & down using CA
+
+# Set up Cluster
+kwokctl create cluster --enable-metrics-server --enable-crds=Metric --enable-crds=ClusterResourceUsage --enable-crds=ResourceUsage
+
+# Apply metrics usage
+kubectl apply -f https://github.com/kubernetes-sigs/kwok/releases/download/v0.6.0/metrics-usage.yaml
+
+## Create the nodes
+kwokctl scale node --replicas 1
+
+# Configure cluster-autoscaler to use kwok cloud provider
+helm repo add autoscaler https://kubernetes.github.io/autoscaler
+
+helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
+--set "autoDiscovery.clusterName"="kwok-kwok" \
+--set "cloudprovider"=kwok --set "image.tag"="v1.30.1" \
+--set "image.repository"="registry.k8s.io/autoscaling/cluster-autoscaler" 
+
+helm template cluster-autoscaler autoscaler/cluster-autoscaler  --set "cloudProvider"="kwok" \
+-s templates/configmap.yaml \
+--namespace=default > config-map-kwok.yaml
+
+kubectl apply -f config-map-kwok-copy.yaml 
+
+# static
+# delete the existing configmap
+kubectl delete configmap kwok-provider-templates
+
+# create a new configmap with your own node yamls
+kubectl create configmap kwok-provider-templates --from-file=templates=node.yaml
+
+# Uninstall cluster-autoscaler
+#helm uninstall cluster-autoscaler
+
+## Create pods
+kubectl apply -f deployment.yaml
+
+## Delete the cluster
+kwokctl delete cluster
+
+## That's all, enjoy it
+clear
+
+
+
+
+
+
+
+
+
+
+
+
+---
+## Create Kind cluster
+kind create cluster --config kind.yml
+
+# Configure cluster-autoscaler to use kwok cloud provider
+helm repo add autoscaler https://kubernetes.github.io/autoscaler
+
+helm upgrade --install cluster-autoscaler autoscaler/cluster-autoscaler \
+--set "autoDiscovery.clusterName"="kind-kind" \
+--set "cloudprovider"=kwok \
+--set "image.tag"="v1.30.1" \
+--set "image.repository"="registry.k8s.io/autoscaling/cluster-autoscaler" 
+
+helm template cluster-autoscaler autoscaler/cluster-autoscaler  --set "cloudProvider"="kwok" \
+-s templates/configmap.yaml \
+--namespace=default > config-map-kwok.yaml
+
+#helm uninstall cluster-autoscaler
+
+# Install kwok in the cluster
+helm repo add kwok https://kwok.sigs.k8s.io/charts/
+helm upgrade --namespace kube-system --install kwok kwok/kwok
+helm upgrade --install kwok kwok/stage-fast
+helm upgrade --install kwok kwok/metrics-usage
+
+# Delete the cluster
+kind delete cluster

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+  #annotations:
+  #  pod-create.stage.kwok.x-k8s.io/delay: "30000"
+  #  pod-create.stage.kwok.x-k8s.io/jitter-delay: "20000"
+spec:
+  containers:
+  - name: example-container
+    image: nginx:1.19.2  # Specify the image name here
+    ports:
+    - containerPort: 80
+    

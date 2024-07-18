@@ -1,0 +1,91 @@
+# Scale pod up & down using Karpenter
+
+# Set up Cluster
+kwokctl create cluster --enable-metrics-server --enable-crds=Metric --enable-crds=ClusterResourceUsage --enable-crds=ResourceUsage
+
+# Apply metrics usage
+kubectl apply -f https://github.com/kubernetes-sigs/kwok/releases/download/v0.6.0/metrics-usage.yaml
+
+# Create a node
+kwokctl scale node --replicas 1 --param '.allocatable.cpu="4000m"'
+
+# Set up image repository
+export DEFAULT_REGION=eu-west-2
+export ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
+
+output=$(aws ecr create-repository \
+    --repository-name dev \
+    --image-scanning-configuration scanOnPush=true \
+    --region "${DEFAULT_REGION}")
+
+echo "$output"
+
+export KO_DOCKER_REPO="${ACCOUNT_ID}.dkr.ecr.${DEFAULT_REGION}.amazonaws.com/dev"
+aws ecr get-login-password --region "${DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
+
+# Clone Karpenter repository
+git clone https://github.com/kubernetes-sigs/karpenter.git
+
+# Install Karpenter provider
+cd karpenter
+make install-kwok
+
+# Create node class CRD
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/karpenter/main/kwok/apis/crds/karpenter.kwok.sh_kwoknodeclasses.yaml
+
+# Create node pool
+kubectl apply -f node-pool.yaml
+
+# Create deployment
+cd ..
+kubectl apply -f deployment.yaml
+
+# Delete the cluster
+kwokctl delete cluster
+
+# Delete image repository
+aws ecr delete-repository \
+    --repository-name dev \
+    --region "${DEFAULT_REGION}" \
+    --force
+
+
+
+
+
+
+# Install Karpenter
+## Logout of helm registry to perform an unauthenticated pull against the public ECR
+helm registry logout public.ecr.aws
+
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+  --set "settings.clusterName=${CLUSTER_NAME}" \
+  --set "settings.interruptionQueue=${CLUSTER_NAME}" \
+  --set controller.resources.requests.cpu=1 \
+  --set controller.resources.requests.memory=1Gi \
+  --set controller.resources.limits.cpu=1 \
+  --set controller.resources.limits.memory=1Gi \
+  --wait
+
+# Install Karpenter CRD
+KARPENTER_IMAGE_VERSION=0.37.0
+KARPENTER_NAMESPACE=kube-system
+helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version $KARPENTER_IMAGE_VERSION --namespace "${KARPENTER_NAMESPACE}" --create-namespace
+
+
+
+
+
+
+
+# Install controller gen and toolchain
+go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+make toolchain
+export PATH=$PATH:$(go env GOPATH)/bin
+#echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+#source ~/.bashrc
+make apply
+
+# Generate instance type
+cd ..
+#wget https://raw.githubusercontent.com/kubernetes-sigs/karpenter/main/kwok/examples/instance_types.json
