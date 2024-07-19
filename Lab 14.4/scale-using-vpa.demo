@@ -1,0 +1,31 @@
+# Scale pod up & down using VPA
+
+cd Lab\ 14.3
+curl -s https://gist.githubusercontent.com/wongcyrus/a4e726b961260395efa7811cab0b4516/raw/6a045f51acb2338bb2149024a28621db2abfcaab/resize.sh | bash /dev/stdin 20
+
+# Set up Cluster
+kwokctl create cluster --enable-metrics-server --enable-crds=Metric --enable-crds=ClusterResourceUsage --enable-crds=ResourceUsage
+
+# Apply metrics usage
+kubectl apply -f https://github.com/kubernetes-sigs/kwok/releases/download/v0.6.0/metrics-usage.yaml
+
+# Create a node
+kwokctl scale node --replicas 1 --param '.allocatable.cpu="4000m"'
+
+# Install VPA
+git clone https://github.com/kubernetes/autoscaler.git
+
+cd autoscaler
+cd vertical-pod-autoscaler
+./hack/vpa-up.sh
+
+# Delete the cluster
+kwokctl delete cluster
+
+
+/Lab 14.4/instance_types.json
+
+##############
+# install metric server for kind cluster
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch deploy metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls=true"}]'
