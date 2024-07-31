@@ -12,12 +12,15 @@ spec:
         - key: kubernetes.io/os
           operator: In
           values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
       nodeClassRef:
         name: default
         kind: KWOKNodeClass
         apiVersion: v1alpha1
   limits:
-    cpu: 4000s
+    cpu: 1000
   disruption:
     consolidationPolicy: WhenUnderutilized
     expireAfter: 720h # 30 * 24h = 720h
@@ -26,4 +29,3 @@ apiVersion: karpenter.kwok.sh/v1alpha1
 kind: KWOKNodeClass
 metadata:
   name: default
-spec:

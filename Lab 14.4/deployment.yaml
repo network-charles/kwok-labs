@@ -1,38 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx
+  name: fake-app
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: nginx
+      app: fake-app
   template:
     metadata:
       labels:
-        app: nginx
+        app: fake-app
     spec:
       containers:
-      - name: nginx
-        image: nginx:alpine
+      - name: fake-app
+        image: fake-image
         ports:
         - containerPort: 80
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: type
-                operator: In
-                values:
-                - kwok
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - nginx
-            topologyKey: kubernetes.io/hostname
-            
+        resources:
+          requests:
+            cpu: 100m
