@@ -1,0 +1,86 @@
+# create cluster 
+kind create cluster
+
+# Deploy Kwok in a cluster
+cd kyverno-lab/kyverno
+./docs/perf-testing/kwok.sh
+
+# Create Kwok nodes
+./docs/perf-testing/node.sh
+
+# Setup Monitor Components
+make dev-lab-metrics-server dev-lab-prometheus
+
+# Install etcd client
+kubectl apply -f https://gist.githubusercontent.com/aojea/6f17c07251cf9251f66a611d80c6a6f1/raw/c00a517341528862fe16b2fb8c40126d5dfd17b3/etcdclient.yml
+
+# Check current etcd size
+kubectl exec -it etcdclient -- sh
+etcdctl endpoint status -w table
+
+# Install Kyverno
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm repo update
+helm upgrade --install kyverno kyverno/kyverno -n kyverno \
+  --create-namespace \
+  --set admissionController.serviceMonitor.enabled=true \
+  --set admissionController.replicas=3 \
+  --set reportsController.serviceMonitor.enabled=true \
+  --set reportsController.resources.limits.memory=10Gi \
+  --set "features.omitEvents.eventTypes={PolicyApplied,PolicySkipped,PolicyViolation,PolicyError}" \
+  # --devel \
+  # --set features.admissionReports.enabled=false \
+
+# Deploy Kyverno PSS policies
+helm upgrade --install kyverno kyverno/kyverno-policies --set=podSecurityStandard=restricted --set=background=true --set=validationFailureAction=Audit --devel
+
+# Testing the reports controller
+The following instructions provide steps to create policyreports for installed workloads, measure resource usages of the reports controller and the total objects size in etcd.
+
+# Create workloads
+This script creates 1 deployments in namespace default, each deployment has 1 replicas:
+
+./docs/perf-testing/deployment.sh
+Enter the deployment count:
+1
+Enter the deployment replicas:
+1
+Enter the deployment namespace:
+default
+...
+
+# View policy reports
+kubectl get policyreports.wgpolicyk8s.io 
+
+NAME                                   KIND         NAME                          PASS   FAIL   WARN   ERROR   SKIP   AGE
+6c903e74-f35f-4188-aed7-c7cb4850749a   ReplicaSet   fake-pod-1-6c4d665647         15     4      0      0       0      32m
+7ebb4cff-6b8a-4973-96c7-fe40297bea7c   Pod          fake-pod-1-6c4d665647-z78jd   15     4      0      0       0      32m
+bb66676c-7a85-429a-8cf2-ec41fbdb3805   Deployment   fake-pod-1                    15     4      0      0       0      32m
+d5fc901d-958a-4599-bd37-2bc16e0a7745   Pod          etcdclient                    12     7      0      0       0      15m
+
+# copy size.sh into the client and execute it
+kubectl cp -n default ./docs/perf-testing/size.sh etcdclient:/
+
+# exec into etcdclient
+kubectl exec -it etcdclient -- sh
+sh size.sh
+
+This assesses the storage footprint of Kyverno policies and related data in etcd.
+
+# Use the below policy resource namee:
+wgpolicyk8s.io/policyreports
+
+The total size for wgpolicyk8s.io/policyreports is 1209166 bytes.
+
+# Check new etcd size
+kubectl exec -it etcdclient -- sh
+etcdctl endpoint status -w table
+
++-------------------------+-----------------+---------+---------+-----------+-----------+------------+
+|        ENDPOINT         |       ID        | VERSION | DB SIZE | IS LEADER | RAFT TERM | RAFT INDEX |
++-------------------------+-----------------+---------+---------+-----------+-----------+------------+
+| https://172.18.0.2:2379 | e58c878e0e01014 |  3.5.12 |   26 MB |      true |         2 |       3262 |
++-------------------------+-----------------+---------+---------+-----------+-----------+------------+
+
+# Delete a Cluster
+kind delete cluster

@@ -1,4 +1,4 @@
-# Scale pod CPU request up & down using VPA
+Scale pod CPU request up & down using VPA
 
 # Get metrics usage
 wget https://github.com/kubernetes-sigs/kwok/releases/download/v0.6.0/metrics-usage.yaml
@@ -38,3 +38,9 @@ kubectl get pod -o yaml | grep -i cpu:
 
 # Delete the cluster
 kwokctl delete cluster
+
+
+##############
+# install metric server for kind cluster
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch deploy metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls=true"}]'

@@ -1,0 +1,65 @@
+# create cluster
+k3d cluster create scaling --servers 1 --agents=1 --k3s-arg "--disable=metrics-server@server:*" --k3s-node-label "ingress-ready=true@agent:*" 
+
+# install 
+# git clone https://github.com/kyverno/kyverno.git
+cd kyverno-lab/kyverno
+
+# Deploy Kwok in a cluster
+./docs/perf-testing/kwok.sh
+
+# Create Kwok nodes
+./docs/perf-testing/node.sh
+
+# Setup Monitor Components
+make dev-lab-metrics-server dev-lab-prometheus
+
+# Install Kyverno
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm repo update
+helm upgrade --install kyverno kyverno/kyverno -n kyverno \
+  --create-namespace \
+  --set admissionController.serviceMonitor.enabled=true \
+  --set admissionController.replicas=3 \
+  --set reportsController.serviceMonitor.enabled=true \
+  --set reportsController.resources.limits.memory=10Gi \
+  --set "features.omitEvents.eventTypes={PolicyApplied,PolicySkipped,PolicyViolation,PolicyError}" \
+  # --devel \
+  # --set features.admissionReports.enabled=false \
+
+# Deploy Kyverno PSS policies
+helm upgrade --install kyverno kyverno/kyverno-policies --set=podSecurityStandard=restricted --set=background=true --set=validationFailureAction=Audit --devel
+
+# Create workloads
+This script creates 1 deployments in namespace default, each deployment has 1 replicas:
+
+./docs/perf-testing/deployment.sh
+Enter the deployment count:
+1
+Enter the deployment replicas:
+1
+Enter the deployment namespace:
+default
+...
+
+# View policy reports
+kubectl get policyreports.wgpolicyk8s.io 
+
+# Objects sizes in etcd
+./docs/perf-testing/size.sh
+Enter the resource to caclutate the size:
+wgpolicyk8s.io/policyreports
+
+# delete server
+k3d cluster delete scaling
+
+
+
+
+
+# etcd
+sudo etcdctl --endpoints=https://$(kubectl get node -o wide | grep k3d-scaling-server-0 | awk '{print $6}'):2379 \
+--cacert=/var/lib/rancher/k3s/server/tls/etcd/server-ca.crt \
+--cert=/var/lib/rancher/k3s/server/tls/etcd/client.crt \
+--key=/var/lib/rancher/k3s/server/tls/etcd/client.key \
+version
