@@ -1,0 +1,55 @@
+# create cluster 
+kind create cluster --config cluster.yml
+
+# Installing KubeVirt on Kubernetes
+# Point at latest release
+export RELEASE=$(curl https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+# Deploy the KubeVirt operator
+kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${RELEASE}/kubevirt-operator.yaml
+# Create the KubeVirt CR (instance deployment request) which triggers the actual installation
+kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${RELEASE}/kubevirt-cr.yaml
+sleep 60
+# wait until all KubeVirt components are up
+kubectl -n kubevirt wait kv kubevirt --for condition=Available
+kubectl patch kubevirt kubevirt -n kubevirt --type='merge' -p='{"spec": {"configuration": {"developerConfiguration": {"useEmulation": true}}}}'
+# verify that KubeVirt is deployed
+kubectl -n kubevirt get kubevirt 
+kubectl get pods -n kubevirt 
+
+# Install KWOK in the cluster
+KWOK_REPO=kubernetes-sigs/kwok
+KWOK_LATEST_RELEASE=$(curl "https://api.github.com/repos/${KWOK_REPO}/releases/latest" | jq -r '.tag_name')
+kubectl apply -f "https://github.com/${KWOK_REPO}/releases/download/${KWOK_LATEST_RELEASE}/kwok.yaml"
+kubectl apply -f "https://github.com/${KWOK_REPO}/releases/download/${KWOK_LATEST_RELEASE}/stage-fast.yaml"
+
+# Install virctl
+VERSION=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.observedKubeVirtVersion}")
+ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/') || windows-amd64.exe
+echo ${ARCH}
+curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
+chmod +x virtctl
+sudo install virtctl /usr/local/bin
+
+# Create new KWOK node
+kubectl apply -f node.yaml
+
+# Create a virtual machine with a taint for the KWOK node
+kubectl apply -f vm.yaml 
+
+# View virtual machine 
+kubectl get vm
+
+# Start a virtual machine
+virtctl start testvm
+
+# View virtual machine
+kubectl get vm,vmi,pod
+
+k delete -f vm.yaml
+k delete -f node.yaml
+
+# Delete cluster
+kind delete cluster
+
+## Delete resources
+clear
