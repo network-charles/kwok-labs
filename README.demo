@@ -1,0 +1,85 @@
+# Install KWOK
+KWOK_REPO=kubernetes-sigs/kwok
+KWOK_LATEST_RELEASE=$(curl "https://api.github.com/repos/${KWOK_REPO}/releases/latest" | jq -r '.tag_name')
+wget -O kwokctl -c "https://github.com/${KWOK_REPO}/releases/download/${KWOK_LATEST_RELEASE}/kwokctl-$(go env GOOS)-$(go env GOARCH)"
+chmod +x kwokctl
+sudo mv kwokctl /usr/local/bin/kwokctl
+wget -O kwok -c "https://github.com/${KWOK_REPO}/releases/download/${KWOK_LATEST_RELEASE}/kwok-$(go env GOOS)-$(go env GOARCH)"
+chmod +x kwok
+sudo mv kwok /usr/local/bin/kwok
+
+# Install kubectl
+snap install kubectl --classic
+kubectl version --client
+
+# Lab 01
+kwok starter guide
+
+# Lab 02
+Create an nginx deployment and exec into it
+
+# Lab 03
+Install Prometheus
+
+# Lab 04
+Record and replay a cluster without saving resources
+
+# Lab 05
+Record and replay a cluster but save resources
+
+# Lab 06
+kwokctl etcd snapshot 
+
+# Lab 07
+Install Kind and Backup the etcd to be restored using kwokctl
+
+# Lab 08
+Deploy kwok in a KIND Cluster
+
+# Lab 09
+Create a simulated metric for your pods using K8s metric-server
+
+# Lab 10
+Create a pod lifecycle
+
+# Lab 11
+Simulate pod create
+
+# Lab 12
+Do some performance testing using Yunikorn
+
+# Lab 13.1
+Scheduling Pods with Resource Requests and Limits
+
+# Lab 13.2
+Scheduling Pods with Affinity and Anti-Affinity
+
+# Lab 13.3
+Scheduling Pods with Taints and Tolerations
+
+# Lab 13.4
+Scheduling pods with a limit Range
+
+# Lab 13.5
+Scheduling pods using pod priority and preemption
+
+# Lab 13.6
+Scheduling pods using pod topology spread constraints
+
+# Lab 14.1
+Scale pod up & down using HPA
+
+# Lab 14.2
+Scale node up & down using CA
+
+# Lab 14.3
+Scale pod up & down using Karpenter
+
+# Lab 14.4
+Scale pod CPU request up & down using VPA
+
+# Lab 15.1
+Use kwok with kyverno
+
+# Lab 15.2
+Use kwok with kubevirt

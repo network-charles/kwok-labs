@@ -1,4 +1,4 @@
-# Record and replay a cluster without saving resources.
+# Record and replay a cluster without saving resources
 
 # Let's get started with kwokctl!
 kwokctl create cluster

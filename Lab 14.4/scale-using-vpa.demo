@@ -1,4 +1,4 @@
-Scale pod CPU request up & down using VPA
+# Scale pod CPU request up & down using VPA
 
 # Get metrics usage
 wget https://github.com/kubernetes-sigs/kwok/releases/download/v0.6.0/metrics-usage.yaml
